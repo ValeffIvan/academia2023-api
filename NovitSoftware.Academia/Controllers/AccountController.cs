@@ -55,7 +55,7 @@ public class AccountController : ControllerBase
 
         var userCreated = context.Users.FirstOrDefault(x => x.Id == user.Id);
 
-        return Ok(new { Id = userCreated.Id, Username = userCreated.Username, Role = userCreated.Roles.First().Name });
+        return Ok(new { Id = userCreated.Id, Username = userCreated.Username, Role = userCreated.Roles.FirstOrDefault().Name });
     }
 
     [HttpPost("Login")]

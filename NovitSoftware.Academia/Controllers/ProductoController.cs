@@ -1,5 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using NovitSoftware.Academia.Persistence;
 
 namespace NovitSoftware.Academia.Controllers
 {
@@ -8,10 +12,88 @@ namespace NovitSoftware.Academia.Controllers
     [Authorize(Roles = "Administrador,Vendedor")]
     public class ProductoController : ControllerBase
     {
-        [HttpGet]
-        public ActionResult Get()
+        private readonly AplicacionDbContext context;
+        
+        public ProductoController (AplicacionDbContext context)
         {
-            return Ok("Lista de Productos");
+            this.context = context;
+        }
+
+        [HttpGet("GetProducts")]
+        [AllowAnonymous]
+        public ActionResult Products()
+        {
+            var productList = context.Productos.Select(x =>
+            new
+            {
+                x.IdProducto,
+                x.Precio,
+                x.Barrio,
+                x.Codigo,
+                x.Estado,
+                x.Imagen,
+            }).ToList();
+            return Ok(productList);
+        }
+
+        [HttpPost("PostProducts")]
+        [AllowAnonymous]
+        public ActionResult AddProduct (Producto producto)
+        {
+            var newProduct = new Producto()
+            {
+                IdProducto = producto.IdProducto,
+                Codigo = producto.Codigo,
+                Barrio = producto.Barrio,
+                Precio = producto.Precio,
+                Imagen = producto.Imagen,
+                Estado = producto.Estado,
+            };
+
+            context.Productos.Add(newProduct);
+
+            context.SaveChanges();
+
+            var productCreated = context.Productos.FirstOrDefault(x => x.IdProducto == producto.IdProducto);
+
+            return Ok(new { IdProducto = productCreated.IdProducto, Precio = productCreated.Precio, Barrio = productCreated.Barrio, Codigo = productCreated.Codigo, Imagen = producto.Imagen, Estado = producto.Estado});
+        }
+
+        [HttpDelete("PostProducts")]
+        [AllowAnonymous]
+        public ActionResult RemoveProduct (int idProducto)
+        {
+            try
+            {
+                if (idProducto <= 0)
+                    return BadRequest("Not a valid product id");
+                else
+                {
+                    var product = context.Productos.FirstOrDefault(x => x.IdProducto == idProducto);
+                    context.Productos.Remove(product);
+                    context.SaveChanges();
+                    return Ok();
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPut("PutProducts")]
+        [AllowAnonymous]
+        public ActionResult ChangeProduct (Producto product)
+        {
+            var productoActualizado = context.Productos.FirstOrDefault(x=>x.IdProducto == product.IdProducto);
+            productoActualizado.Precio = product.Precio;
+            productoActualizado.Imagen = product.Imagen;
+            productoActualizado.Barrio = product.Barrio;
+            productoActualizado.Codigo = product.Codigo;
+            productoActualizado.Estado = product.Estado;
+            context.Entry(productoActualizado).State = EntityState.Modified;
+            context.SaveChanges();
+            return Ok();
         }
     }
 }
