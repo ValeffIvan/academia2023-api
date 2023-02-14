@@ -23,57 +23,19 @@ namespace NovitSoftware.Academia.Controllers
         [AllowAnonymous]
         public ActionResult Products()
         {
-            var productList = context.Productos.Select(x =>
-            new
-            {
-                x.IdProducto,
-                x.Precio,
-                x.Barrio,
-                x.Codigo,
-                x.Estado,
-                x.Imagen,
-            }).ToList();
-            return Ok(productList);
-        }
-
-        [HttpPost("PostProducts")]
-        [AllowAnonymous]
-        public ActionResult AddProduct (Producto producto)
-        {
-            var newProduct = new Producto()
-            {
-                IdProducto = producto.IdProducto,
-                Codigo = producto.Codigo,
-                Barrio = producto.Barrio,
-                Precio = producto.Precio,
-                Imagen = producto.Imagen,
-                Estado = producto.Estado,
-            };
-
-            context.Productos.Add(newProduct);
-
-            context.SaveChanges();
-
-            var productCreated = context.Productos.FirstOrDefault(x => x.IdProducto == producto.IdProducto);
-
-            return Ok(new { IdProducto = productCreated.IdProducto, Precio = productCreated.Precio, Barrio = productCreated.Barrio, Codigo = productCreated.Codigo, Imagen = producto.Imagen, Estado = producto.Estado});
-        }
-
-        [HttpDelete("PostProducts")]
-        [AllowAnonymous]
-        public ActionResult RemoveProduct (int idProducto)
-        {
             try
             {
-                if (idProducto <= 0)
-                    return BadRequest("Not a valid product id");
-                else
+                var productList = context.Productos.Select(x =>
+                new
                 {
-                    var product = context.Productos.FirstOrDefault(x => x.IdProducto == idProducto);
-                    context.Productos.Remove(product);
-                    context.SaveChanges();
-                    return Ok();
-                }
+                    x.IdProducto,
+                    x.Precio,
+                    x.Barrio,
+                    x.Codigo,
+                    x.Estado,
+                    x.Imagen,
+                }).ToList();
+                return Ok(productList);
             }
             catch (Exception ex)
             {
@@ -81,7 +43,51 @@ namespace NovitSoftware.Academia.Controllers
             }
         }
 
-        [HttpPut("PutProducts")]
+        [HttpPost("PostProducts")]
+        [AllowAnonymous]
+        public ActionResult AddProduct (Producto producto)
+        {
+            try
+            {
+                var newProduct = new Producto()
+                {
+                    Codigo = producto.Codigo,
+                    Barrio = producto.Barrio,
+                    Precio = producto.Precio,
+                    Imagen = producto.Imagen,
+                    Estado = 1,
+                };
+
+                context.Productos.Add(newProduct);
+
+                context.SaveChanges();
+
+                return Ok();
+            }
+            catch(Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("DeleteProducts" + "{idProducto}")]
+        [AllowAnonymous]
+        public ActionResult RemoveProduct (int idProducto)
+        {
+            try
+            {
+                var product = context.Productos.FirstOrDefault(x => x.IdProducto == idProducto);
+                context.Productos.Remove(product);
+                context.SaveChanges();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPut("PutProducts" + "{product}")]
         [AllowAnonymous]
         public ActionResult ChangeProduct (Producto product)
         {
