@@ -47,7 +47,7 @@ public class AccountController : ControllerBase
             return BadRequest("Rol inexistente.");
         }
 
-        user.Roles.Add(role);
+         user.Roles.Add(role);
 
         context.Users.Add(user);
 
@@ -56,27 +56,49 @@ public class AccountController : ControllerBase
         var userCreated = context.Users.FirstOrDefault(x => x.Id == user.Id);
 
         return Ok(new { Id = userCreated.Id, Username = userCreated.Username, Role = userCreated.Roles.FirstOrDefault().Name });
+
+    }
+
+    [HttpPost("ExisteElUsuario")]
+    [AllowAnonymous]
+    public ActionResult<Boolean> ExisteElUsuario([FromBody] ExisteElUsuarioModel usuarioModel)
+    {
+        var usuario = context.Users.FirstOrDefault(x => x.Username == usuarioModel.nombre);
+        if (usuario == null)
+        {
+            return Ok(false);
+        }
+        else
+        {
+            return Ok(true);
+        }
     }
 
     [HttpPost("Login")]
     [AllowAnonymous]
     public ActionResult Login(UserDto request)
     {
-        var user = context.Users.Where(x => x.Username == request.Username).Include(x => x.Roles).First();
-
-        if (user is null)
+        try
         {
-            return BadRequest("Usuario inexistente.");
-        }
+            var user = context.Users.Where(x => x.Username == request.Username).Include(x => x.Roles).First();
 
-        if (!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt))
+            if (user is null)
+            {
+                return BadRequest("Usuario inexistente.");
+            }
+
+            if (!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt))
+            {
+                return BadRequest("Contraseña incorrecta.");
+            }
+
+            string token = CreateToken(user);
+
+            return Ok(token);
+        }catch(Exception ex)
         {
-            return BadRequest("Contraseña incorrecta.");
+            return BadRequest(ex.Message);
         }
-
-        string token = CreateToken(user);
-
-        return Ok(token);
     }
 
     [ApiExplorerSettings(IgnoreApi = true)]
@@ -123,9 +145,9 @@ public class AccountController : ControllerBase
     }
 
     //[ApiExplorerSettings(IgnoreApi = true)]
-    //[Authorize]
-    [AllowAnonymous]
+   // [Authorize]
     [HttpGet("GetUsers")]
+    [AllowAnonymous]
     public ActionResult Users()
     {
         var users = context.Users.Include(x => x.Roles).ToList().Select(x => new { x.Id, x.Username, x.PasswordHash, roles = x.Roles.Select(y => new { y.Id, y.Name })});
