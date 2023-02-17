@@ -60,7 +60,7 @@ public class AccountController : ControllerBase
 
     [HttpPost("Login")]
     [AllowAnonymous]
-    public ActionResult<string> Login(UserDto request)
+    public ActionResult Login(UserDto request)
     {
         var user = context.Users.Where(x => x.Username == request.Username).Include(x => x.Roles).First();
 
@@ -122,8 +122,9 @@ public class AccountController : ControllerBase
         return Ok("Rol asociado");
     }
 
-    [ApiExplorerSettings(IgnoreApi = true)]
-    [Authorize]
+    //[ApiExplorerSettings(IgnoreApi = true)]
+    //[Authorize]
+    [AllowAnonymous]
     [HttpGet("GetUsers")]
     public ActionResult Users()
     {

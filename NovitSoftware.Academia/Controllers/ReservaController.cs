@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using NovitSoftware.Academia.Persistence;
+using NovitSoftware.Academia.Services.DTOs;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.Runtime.ConstrainedExecution;
 
 namespace NovitSoftware.Academia.Controllers
 {
@@ -39,30 +43,75 @@ namespace NovitSoftware.Academia.Controllers
                 return BadRequest(ex);
             }
         }
-
-        [HttpPost("PostReservas")]
+        //funcion para crear reserva
+        [HttpPost("ReservaNueva")]
         [AllowAnonymous]
-        public ActionResult AddReservas(Reserva reservas)
+
+        public ActionResult ReservaNueva([FromBody] ReservaXProducto reserva)
         {
-            var newReserva = new Reserva()
+            Reserva NewReserva = new Reserva()
             {
-                IdVendedor = reservas.IdVendedor,
-                Cliente = reservas.Cliente,
-                Estado = reservas.Estado,
-                IdReserva = reservas.IdReserva
+                Cliente = reserva.reserva.Cliente,
+                IdReserva = reserva.reserva.IdReserva,
+                IdVendedor = reserva.reserva.IdVendedor,
+                Estado = 1,
             };
 
-            context.Reservas.Add(newReserva);
+            var producto = context.Productos.FirstOrDefault(x => x.Codigo == reserva.producto.Codigo);
+            try
+            {
+                if (producto.Precio <= 100000 )
+                {
+                    NewReserva.Estado = 4;
 
-            context.SaveChanges();
+                    //actualizacion del estado del producto y asociacion con la reserva
+                    producto.Estado = 2;
+                    context.Entry(producto).State = EntityState.Modified;
+                    context.SaveChanges();
+                    NewReserva.IdProductos.Add(producto);
 
-            var reservasCreated = context.Reservas.FirstOrDefault(x => x.IdReserva == reservas.IdReserva);
+                    //Adicion de la nueva reserva
+                    context.Reservas.Add(NewReserva);
+                    context.SaveChanges();
 
-            return Ok(new { IdVendedor = newReserva.IdVendedor, Cliente = newReserva.Cliente, Estado = newReserva.Estado, IdReserva = newReserva.IdReserva });
+                    return Ok("Reserva Aprobada");
+
+                }
+                else
+                {
+                    //por si el vendedor tiene mas de 3 reservas
+                    if (reserva.reserva.IdVendedorNavigation.Reservas.Count() > 3)
+                    {
+                        return BadRequest("Este vendedor no puede reservar mas");
+                    }
+                    else
+                    {
+                        NewReserva.Estado = 1;
+
+                        //actualizacion del estado del producto y asociacion con la reserva
+                        producto.Estado = 2;
+                        context.Entry(producto).State = EntityState.Modified;
+                        context.SaveChanges();
+                        NewReserva.IdProductos.Add(producto);
+
+                        //Adicion de la nueva reserva
+                        context.Reservas.Add(NewReserva);
+                        context.SaveChanges();
+
+                        return Ok("Reserva ingresada");
+
+                    }
+                }
+            }
+            catch
+            {
+                return BadRequest("La reserva no pudo ser creada");
+            }
         }
 
+
         [HttpDelete("DeleteReserva" + "{idReserva}")]
-        [AllowAnonymous] 
+        [AllowAnonymous]
         public ActionResult RemoveReserva(int idReserva)
         {
             try
@@ -72,7 +121,7 @@ namespace NovitSoftware.Academia.Controllers
                 {
                     foreach (var producto in reserva.IdProductos)
                     {
-                        var product = context.Productos.FirstOrDefault(x => x.IdProducto== producto.IdProducto);
+                        var product = context.Productos.FirstOrDefault(x => x.IdProducto == producto.IdProducto);
                         product.Estado = 0;
                         context.Entry(product).State = EntityState.Modified;
                         context.SaveChanges();
@@ -105,29 +154,45 @@ namespace NovitSoftware.Academia.Controllers
             return Ok();
         }
 
-        //Funcion para aprobacion
-        [HttpPut("AceptarReserva")]
-        [AllowAnonymous] //esto solo para comerciante
-        public ActionResult aceptar(int id)
+        //Funcion para cambiar estado de reserva y producto
+        [HttpPut("CambiarEstado/{id}/{estado}")]
+        [AllowAnonymous]
+        public ActionResult CambiarEstado(int id, int estado)
         {
             try
             {
-                var aprobReserva = context.Reservas.Include(y => y.IdProductos).FirstOrDefault(x => x.IdReserva == id);
-                aprobReserva.Estado = 4;
-                context.Entry(aprobReserva).State = EntityState.Modified;
+                var Reserva = context.Reservas.Include(y => y.IdProductos).FirstOrDefault(x => x.IdReserva == id);
+                switch (estado)
+                {
+                    case 4: Reserva.Estado = 4; break;
+                    case 3: Reserva.Estado = 3; break;
+                    case 2: Reserva.Estado = 2; break;
+                    case 5: Reserva.Estado = 5; break;
+                    default: Reserva.Estado = 1; break;
+                }
+                context.Entry(Reserva).State = EntityState.Modified;
                 context.SaveChanges();
 
                 //cambiar el objeto a vendido
-                var objVend = context.Productos.FirstOrDefault(z => z.IdProducto == aprobReserva.IdProductos.LastOrDefault().IdProducto);
-                objVend.Estado = 3;
-                context.Entry(objVend).State = EntityState.Modified;
+                var productoDeReserva = context.Productos.FirstOrDefault(z => z.IdProducto == Reserva.IdProductos.LastOrDefault().IdProducto);
+                switch (estado)
+                {
+                    case 1: productoDeReserva.Estado = 2; break;
+                    case 4: productoDeReserva.Estado = 3; break;
+                    case 5: productoDeReserva.Estado = 1; break;
+                    case 3: productoDeReserva.Estado = 1; break;
+                    default: productoDeReserva.Estado = 1; break;
+                }
+                context.Entry(productoDeReserva).State = EntityState.Modified;
                 context.SaveChanges();
-                return Ok("Reserva confirmada");
+                return Ok("Reserva y producto cambiado");
             }
             catch
             {
                 return BadRequest("El codigo de la reserva no es valido,no existe o no tiene productos asociados");
             }
         }
+
+
     }
 }
